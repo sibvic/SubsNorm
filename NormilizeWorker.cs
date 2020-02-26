@@ -130,20 +130,94 @@ namespace SubsNorm
             readonly List<string> _words = new List<string>();
             public int Limit { get; set; } = 42;
 
+            private int GetTotalLength()
+            {
+                return _words.Sum(w => w.Count(ch => char.IsLetterOrDigit(ch)));
+            }
+
             public bool MergeTo(LineBuilder another)
             {
                 if (another == null)
                 {
                     return false;
                 }
-                var anotherLength = another._words.Sum(w => w.Count(ch => char.IsLetterOrDigit(ch)));
-                var myLenth = _words.Sum(w => w.Count(ch => char.IsLetterOrDigit(ch)));
+                var anotherLength = another.GetTotalLength();
+                var myLenth = GetTotalLength();
                 if (anotherLength + myLenth > Limit)
                 {
                     return false;
                 }
                 another._words.AddRange(_words);
                 return true;
+            }
+
+            internal void RebalanceWith(LineBuilder previous)
+            {
+                if (previous == null)
+                {
+                    return;
+                }
+                var previousLength = previous.GetTotalLength();
+                var myLength = GetTotalLength();
+                var average = (myLength + previousLength) / 2;
+                var toPerfectBalance = Math.Max(Math.Abs(average - myLength), Math.Abs(average - previousLength));
+
+                bool toMe = myLength < previousLength;
+                while (true)
+                {
+                    if (toMe)
+                    {
+                        if (previous._words.Count == 1)
+                        {
+                            return;
+                        }
+                        var word = previous._words[^1];
+                        var wordLength = word.Count(ch => char.IsLetterOrDigit(ch));
+                        if (GoodEnd(word) || wordLength + myLength > Limit)
+                        {
+                            return;
+                        }
+                        var newPreviousLength = previousLength - wordLength;
+                        var newMyLength = myLength + wordLength;
+                        var newToPerfectBalance = Math.Max(Math.Abs(average - newMyLength), Math.Abs(average - newPreviousLength));
+                        if (newToPerfectBalance >= toPerfectBalance)
+                        {
+                            return;
+                        }
+                        _words.Insert(0, word);
+                        previous._words.RemoveAt(previous._words.Count - 1);
+
+                        previousLength = newPreviousLength;
+                        myLength = newMyLength;
+                        toPerfectBalance = newToPerfectBalance;
+                    }
+                    else
+                    {
+                        if (_words.Count == 1)
+                        {
+                            return;
+                        }
+                        var word = _words[0];
+                        var wordLength = word.Count(ch => char.IsLetterOrDigit(ch));
+                        if (GoodEnd(previous._words[^1]) || wordLength + previousLength > Limit)
+                        {
+                            return;
+                        }
+                        var newPreviousLength = previousLength + wordLength;
+                        var newMyLength = myLength - wordLength;
+                        var newToPerfectBalance = Math.Max(Math.Abs(average - newMyLength), Math.Abs(average - newPreviousLength));
+                        if (newToPerfectBalance >= toPerfectBalance)
+                        {
+                            return;
+                        }
+                        previous._words.Add(word);
+                        _words.RemoveAt(0);
+
+                        previousLength = newPreviousLength;
+                        myLength = newMyLength;
+                        toPerfectBalance = newToPerfectBalance;
+                    }
+                }
             }
 
             public bool Add(string word)
@@ -153,7 +227,7 @@ namespace SubsNorm
                     _words.Add(word);
                     return true;
                 }
-                var length = _words.Sum(w => w.Count(ch => char.IsLetterOrDigit(ch)));
+                var length = GetTotalLength();
                 if (length + word.Count(ch => char.IsLetterOrDigit(ch)) > Limit)
                 {
                     return false;
@@ -175,11 +249,7 @@ namespace SubsNorm
             {
                 return string.Join(" ", _words);
             }
-
-            public void Clear()
-            {
-                _words.Clear();
-            }
+           
         }
 
         private IEnumerable<string> SplitToLimit(string item, int limit)
@@ -201,6 +271,7 @@ namespace SubsNorm
                 {
                     if (!currentBuilder.MergeTo(lastBuilder))
                     {
+                        currentBuilder.RebalanceWith(lastBuilder);
                         AddWordIfNeeded(result, lastBuilder);
                         lastBuilder = currentBuilder;
                     }
@@ -208,6 +279,7 @@ namespace SubsNorm
                     currentBuilder.Add(word);
                 }
             }
+            currentBuilder.RebalanceWith(lastBuilder);
             AddWordIfNeeded(result, lastBuilder);
             AddWordIfNeeded(result, currentBuilder);
             return result;
