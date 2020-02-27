@@ -254,6 +254,11 @@ namespace SubsNorm
 
         private IEnumerable<string> SplitToLimit(string item, int limit)
         {
+            item = item.Trim();
+            if (item == "")
+            {
+                return new string[] { };
+            }
             int subtitleLength = CountSymbols(item);
             if (subtitleLength <= limit)
             {
@@ -267,7 +272,7 @@ namespace SubsNorm
             var words = item.Split(" ", StringSplitOptions.RemoveEmptyEntries).ToList();
             foreach (var word in words)
             {
-                if (!currentBuilder.Add(word))
+                if (!currentBuilder.Add(word.Trim()))
                 {
                     if (!currentBuilder.MergeTo(lastBuilder))
                     {
@@ -276,7 +281,7 @@ namespace SubsNorm
                         lastBuilder = currentBuilder;
                     }
                     currentBuilder = new LineBuilder();
-                    currentBuilder.Add(word);
+                    currentBuilder.Add(word.Trim());
                 }
             }
             currentBuilder.RebalanceWith(lastBuilder);
