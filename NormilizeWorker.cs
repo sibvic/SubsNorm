@@ -16,7 +16,7 @@ namespace SubsNorm
         [Option("out", HelpText = "Output file. By default = in")]
         public string Output { get; set; }
 
-        [Option("symbols", Default = 42, HelpText = "Max symbols in line")]
+        [Option("symbols", Default = 40, HelpText = "Max symbols in line")]
         public int MaxSymbols { get; set; }
     }
 
@@ -32,7 +32,7 @@ namespace SubsNorm
 
         private int CountSymbols(string text)
         {
-            return text.Count(ch => char.IsLetterOrDigit(ch));
+            return text.Replace("\\N", "").Count(ch => char.IsLetterOrDigit(ch));
         }
 
         public async Task<int> StartAsync()
